@@ -11,19 +11,17 @@ TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 def get_chat_id():
     """
     Obtiene los últimos mensajes enviados al bot para extraer el chat_id.
-    
-    IMPORTANTE:
-    Antes de ejecutar este script:
-    1. Agrega el bot a tu grupo de Telegram (o inicia un chat directo con él).
-    2. Envía un mensaje cualquiera al grupo (por ejemplo: "Hola bot").
-    3. Ejecuta este script.
     """
+    print("========================================")
+    print("🔍 Herramienta para obtener CHAT_ID")
+    print("========================================\n")
+    
     if not TELEGRAM_BOT_TOKEN:
-        print("Error: TELEGRAM_BOT_TOKEN no está configurado en el archivo .env.")
-        print("Asegúrate de haber creado tu archivo .env y colocado tu token allí.")
+        print("❌ Error: TELEGRAM_BOT_TOKEN no está configurado.")
+        print("💡 Por favor, configura tu archivo .env primero.")
         return
 
-    print("Obteniendo actualizaciones de Telegram...\n")
+    print("⏳ Obteniendo actualizaciones de Telegram de forma segura...\n")
     
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUpdates"
     
@@ -34,32 +32,62 @@ def get_chat_id():
         data = response.json()
         
         if not data.get("ok"):
-            print(f"Error de Telegram: {data.get('description')}")
+            print(f"❌ Error de Telegram: {data.get('description')}")
             return
             
         resultados = data.get("result", [])
         
         if not resultados:
-            print("No se encontraron mensajes recientes.")
-            print("Por favor, envía un mensaje al bot en Telegram y vuelve a intentarlo.")
+            print("⚠️ No se encontraron mensajes recientes.")
+            print("\n💡 INSTRUCCIONES:")
+            print("1. Abre Telegram.")
+            print("2. Busca tu bot o ve al grupo donde lo agregaste.")
+            print("3. Escríbele cualquier mensaje (por ejemplo: 'Hola').")
+            print("4. Vuelve aquí y ejecuta este script nuevamente.")
             return
             
-        print("--- RESULTADOS ENCONTRADOS ---")
+        print("✅ ¡Se encontraron mensajes!\n")
+        print("--- RESULTADOS ---")
+        
         for actualizacion in resultados:
-            if "message" in actualizacion:
-                chat = actualizacion["message"]["chat"]
-                remitente = actualizacion["message"].get("from", {}).get("first_name", "Desconocido")
-                texto = actualizacion["message"].get("text", "[Sin texto]")
+            # Soportar tanto mensajes directos como notificaciones de añadir al grupo
+            msg_data = actualizacion.get("message") or actualizacion.get("my_chat_member", {}).get("chat", {})
+            
+            if not msg_data:
+                continue
                 
-                print(f"Mensaje de: {remitente}")
-                print(f"Texto: {texto}")
-                print(f"-> TU CHAT_ID ES: {chat['id']}")
-                print("-" * 30)
+            chat = msg_data if "id" in msg_data else msg_data.get("chat", {})
+            
+            chat_id = chat.get('id', 'Desconocido')
+            tipo_chat = chat.get('type', 'Desconocido')
+            titulo = chat.get('title', chat.get('first_name', 'Sin Nombre'))
+            
+            # Formatear el tipo de chat
+            if tipo_chat == "private":
+                tipo_str = "👤 Chat Privado"
+            elif tipo_chat in ["group", "supergroup"]:
+                tipo_str = "👥 Grupo / Supergrupo"
+            elif tipo_chat == "channel":
+                tipo_str = "📢 Canal"
+            else:
+                tipo_str = f"Otro ({tipo_chat})"
                 
-        print("\nCopia el número de CHAT_ID y pégalo en tu archivo .env como TELEGRAM_CHAT_ID")
+            print(f"Tipo: {tipo_str}")
+            print(f"Nombre: {titulo}")
+            print(f"👉 TU CHAT_ID ES: {chat_id}")
+            
+            # Aclaración para IDs de grupos
+            if str(chat_id).startswith("-"):
+                print("ℹ️ Nota: En grupos es completamente normal que el CHAT_ID empiece con un número negativo (ej. -100...).")
+                
+            print("-" * 30)
+            
+        print("\n📋 Copia el CHAT_ID correspondiente y pégalo en tu archivo .env")
         
     except Exception as e:
-        print(f"Error al conectar con Telegram: {e}")
+        # Nunca imprimir el error directo si contiene el token
+        safe_error = str(e).replace(TELEGRAM_BOT_TOKEN, "***TOKEN_OCULTO***")
+        print(f"❌ Error al conectar con Telegram: {safe_error}")
 
 if __name__ == "__main__":
     get_chat_id()
