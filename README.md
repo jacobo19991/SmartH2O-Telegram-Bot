@@ -74,3 +74,7 @@ El script enviará una alerta de prueba y luego intentará enviar otra idéntica
 ## 📸 Evidencia de funcionamiento
 
 *(Aquí puedes anexar una captura de pantalla del mensaje enviado al grupo de Telegram mostrando el formato con el emoji, título, descripción y hora. Asegúrate siempre de ocultar cualquier fragmento de tu token si aparece en la pantalla).*
+
+## 📚 Documentación
+
+- [Documento de mecanismo de detección y alertas](docs/mecanismo_deteccion_alertas.md)
