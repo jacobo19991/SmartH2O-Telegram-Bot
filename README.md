@@ -31,7 +31,7 @@ Para configurar tu proyecto localmente:
 2. Abre el archivo `.env` y rellena las variables:
    - `TELEGRAM_BOT_TOKEN`: La credencial que autoriza a tu código a usar el bot.
    - `TELEGRAM_CHAT_ID`: El identificador de la conversación (usuario o grupo) donde llegarán los mensajes.
-   - `ALERT_COOLDOWN_SECONDS`: Tiempo en segundos (por defecto 60) que debe pasar antes de volver a enviar una alerta idéntica (para evitar spam).
+   - `ALERT_COOLDOWN_SECONDS`: Tiempo en segundos (por defecto 300, equivalente a 5 minutos) que debe pasar antes de volver a enviar una alerta idéntica (para evitar spam).
 
 ### 🤖 ¿Cómo obtener el TELEGRAM_BOT_TOKEN?
 1. Abre Telegram y busca a **@BotFather**.

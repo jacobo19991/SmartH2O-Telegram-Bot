@@ -21,11 +21,11 @@ class TelegramBot:
         self.chat_id = os.getenv("TELEGRAM_CHAT_ID")
         self.base_url = "https://api.telegram.org/bot{}/sendMessage"
         
-        # Cargar configuración de cooldown (por defecto 60 segundos)
+        # Cargar configuración de cooldown (por defecto 300 segundos)
         try:
-            self.cooldown_seconds = int(os.getenv("ALERT_COOLDOWN_SECONDS", 60))
+            self.cooldown_seconds = int(os.getenv("ALERT_COOLDOWN_SECONDS", 300))
         except ValueError:
-            self.cooldown_seconds = 60
+            self.cooldown_seconds = 300
             
     def validate_config(self):
         """Valida que las credenciales existan en el entorno."""
