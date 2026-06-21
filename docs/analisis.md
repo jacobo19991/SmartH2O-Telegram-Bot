@@ -1,57 +1,54 @@
-# Análisis de Integración IoT
+# Análisis del Escenario Hídrico - SmartH2O
 
-## 1. Puntos de monitoreo e integración
+## 1. Objetivo del análisis
 
-| Zona | Sensor sugerido | Dato enviado | Sistema que recibe el dato | Observación de integración |
-| :--- | :--- | :--- | :--- | :--- |
-| Zona Norte | Sensor de Temperatura DHT22 | `temperature`, `humidity` | InfluxDB | Frecuencia de envío sugerida: 5 minutos. |
-| Zona Sur | Sensor de Movimiento PIR | `motion_status` | InfluxDB | Envío por eventos (solo cuando detecta movimiento). |
-| Planta Baja | Sensor de Calidad de Aire (MQ-135) | `co2_level`, `air_quality` | InfluxDB | Calibración inicial requerida. |
-| Cuarto de Servidores | Sensor de Humedad y Temperatura | `temp_server`, `hum_server` | InfluxDB | Monitoreo crítico, frecuencia de 1 minuto. |
-| Almacén | Sensor de Apertura de Puertas magnético | `door_status` | InfluxDB | Monitoreo de seguridad y control de acceso. |
+Este documento define los puntos de monitoreo, variables principales y umbrales iniciales del sistema SmartH2O. Su propósito es dejar clara la base técnica para detectar comportamientos anómalos en el consumo de agua y facilitar la integración con InfluxDB, el detector de reglas y el bot de alertas.
 
-## 2. Variables a monitorear
+## 2. Puntos de monitoreo
 
-| Nombre visible | Nombre técnico sugerido | Unidad | Tipo de dato | Uso dentro del sistema |
-| :--- | :--- | :--- | :--- | :--- |
-| Temperatura | `temperature` | °C | Float | Evaluar condiciones ambientales y disparar alertas de calor. |
-| Humedad Relativa | `humidity` | % | Float | Prevenir condensación o sequedad extrema. |
-| Nivel de CO2 | `co2_level` | ppm | Integer | Asegurar calidad del aire y ventilación. |
-| Estado de Movimiento | `motion_status` | N/A | Boolean | Detectar presencia fuera de horario. |
-| Estado de Puerta | `door_status` | N/A | Boolean | Auditar accesos a zonas restringidas. |
+| ID del sensor | Zona | Punto de medición | Patrón de uso esperado | Observación de integración |
+|---|---|---|---|---|
+| SH2O-ZA-001 | Zona A | Sanitarios piso 1 | Alto consumo durante horario laboral | Se espera mayor caudal en horas de mayor tráfico. |
+| SH2O-ZB-001 | Zona B | Cocina / comedor institucional | Consumo alto en horarios de comida | Es normal que existan picos durante desayuno, almuerzo o limpieza. |
+| SH2O-ZC-001 | Zona C | Áreas verdes / riego exterior | Consumo programado en horarios específicos | Se debe detectar consumo fuera del horario de riego. |
+| SH2O-ZD-001 | Zona D | Cuarto de mantenimiento / cisterna | Flujo controlado según demanda | Punto crítico para detectar fugas o flujo continuo. |
+| SH2O-ZE-001 | Zona E | Sanitarios piso 2 | Bajo consumo, especialmente en horario nocturno | Puede servir como referencia para detectar consumo fuera de horario. |
 
-## 3. Flujo de integración de datos
+## 3. Variables a monitorear
 
-1. **Sensor IoT:** El dispositivo físico captura la medición del entorno (ej. temperatura o movimiento).
-2. **Envío de medición:** El dispositivo envía el dato al servidor central a través de un protocolo de mensajería (ej. MQTT o HTTP REST).
-3. **Almacenamiento en InfluxDB:** El backend procesa el mensaje y guarda la serie temporal en la base de datos InfluxDB.
-4. **Consulta por el detector:** El motor de reglas (ej. Telegraf, Kapacitor o un script en Python) consulta periódicamente los últimos valores de InfluxDB.
-5. **Comparación contra umbrales:** El detector evalúa si los datos obtenidos superan o incumplen los valores límite predefinidos (normal, advertencia, crítico).
-6. **Generación de alerta:** Si se rompe una regla, el sistema dispara una alerta que es notificada al equipo o registrada en un dashboard.
+| Nombre visible | Nombre técnico | Unidad | Tipo de dato | Uso dentro del sistema |
+|---|---|---|---|---|
+| Identificador del sensor | sensor_id | N/A | String | Identifica el punto de medición que envía la lectura. |
+| Fecha y hora | timestamp | ISO 8601 | DateTime/String | Registra cuándo ocurrió la medición. |
+| Caudal instantáneo | flow_rate | L/min | Float | Permite detectar consumo alto o posible fuga. |
+| Volumen acumulado | cumulative_volume | L | Float | Permite conocer el consumo total diario por zona. |
+| Estado del sensor | status | normal/warning/critical/offline | Enum/String | Indica la condición general del sensor o lectura. |
+| Bandera de anomalía | anomaly_flag | true/false | Boolean | Marca si la lectura presenta comportamiento anómalo. |
+| Ubicación | location | building/floor/zone | Object | Relaciona la lectura con edificio, piso y zona. |
 
-## 4. Umbrales relacionados con reglas
+## 4. Umbrales de comportamiento normal y anómalo
 
-| Variable | Rango normal | Advertencia | Crítico | Regla asociada |
-| :--- | :--- | :--- | :--- | :--- |
-| `temperature` | 18°C - 25°C | 25°C - 28°C | > 28°C o < 15°C | Alerta de sobrecalentamiento / congelación. |
-| `humidity` | 40% - 60% | 60% - 70% | > 70% o < 30% | Alerta de condensación / ambiente seco. |
-| `co2_level` | < 800 ppm | 800 - 1200 ppm | > 1200 ppm | Alerta de mala calidad del aire. |
-| `motion_status` | `false` (inactivo)| N/A | `true` (en horario no hábil) | Alerta de intrusión. |
-| `door_status` | `closed` | Abierta > 5 min | Abierta > 15 min | Alerta de puerta abierta prolongada. |
+| Zona | Comportamiento normal | Advertencia | Crítico / Anomalía | Posible causa |
+|---|---|---|---|---|
+| Sanitarios piso 1 | 0–15 L/min en horario laboral | Más de 15 L/min por más de 5 minutos | Más de 20 L/min por más de 10 minutos | Posible fuga o uso excesivo. |
+| Cocina / comedor | 0–18 L/min en horarios de comida | Más de 18 L/min por más de 5 minutos | Más de 25 L/min por más de 10 minutos | Consumo anormal o llave abierta. |
+| Riego exterior | Consumo solo en horario programado | Consumo fuera del horario esperado | Caudal nocturno mayor a 5 L/min | Riego activo fuera de horario o fuga. |
+| Cisterna / mantenimiento | Flujo variable según demanda | Flujo continuo por más de 10 minutos | Flujo alto sostenido por más de 15 minutos | Posible fuga, rebalse o falla. |
+| Sanitarios piso 2 | 0–10 L/min en horario laboral | Más de 10 L/min por más de 5 minutos | Caudal nocturno mayor a 5 L/min | Consumo fuera de patrón o fuga. |
 
-## 5. Decisión técnica D01
+## 5. Reglas iniciales de anomalía
 
-**Decisión:** Uso de InfluxDB para métricas de sensores.
+| Regla | Condición | Severidad | Canal | Descripción |
+|---|---|---|---|---|
+| R01 | flow_rate > 20 L/min durante más de 10 minutos | critical | Telegram | Posible fuga o consumo excesivo sostenido. |
+| R02 | flow_rate > 5 L/min en horario nocturno | warning | Telegram | Consumo fuera del horario esperado. |
+| R03 | Sensor sin datos por más de 10 minutos | warning | Telegram/email | Posible desconexión o falla del sensor. |
+| R04 | cumulative_volume supera el consumo esperado diario | critical | Telegram/email | Consumo acumulado anormal para la zona. |
 
-**Justificación:** Los datos provenientes de los sensores IoT consisten principalmente en mediciones estructuradas como series de tiempo (timestamp + valor). InfluxDB está optimizada para la escritura rápida, compresión y consulta eficiente de este tipo de datos, superando el rendimiento de bases de datos relacionales tradicionales en estos escenarios.
+## 6. Pendientes de validación
 
-**Impacto en la integración:** 
-- Obliga a formatear los mensajes provenientes de los sensores (o a través de un broker MQTT) al formato Line Protocol o utilizar la API HTTP de InfluxDB.
-- Facilita la integración futura con herramientas de visualización como Grafana.
-
-**Estado de la decisión:** Aprobada.
-
----
-**Pendientes de validación con el equipo:**
-- *¿Se utilizará MQTT como broker intermedio antes de InfluxDB?*
-- *¿Los umbrales definidos para el cuarto de servidores serán los mismos que para las áreas generales o tendrán reglas más estrictas?*
+- Confirmar si el envío de datos será mediante MQTT o REST.
+- Confirmar si InfluxDB será la base de datos definitiva.
+- Validar los umbrales con el equipo.
+- Confirmar los horarios laborales, nocturnos y de riego.
+- Definir si las alertas se enviarán por Telegram, email o ambos canales.
